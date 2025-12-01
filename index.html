@@ -1,0 +1,1273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LCUP Classroom Utilization App</title>
+    
+        <script>
+        // Firebase Web app configuration (inserted by assistant per user request)
+        window.FIREBASE_CONFIG = {
+          apiKey: "AIzaSyBo-IfNgYIwsW_yqkSDFY85qbFOoDKHND4",
+          authDomain: "classroomutilization-18389.firebaseapp.com",
+          projectId: "classroomutilization-18389",
+          storageBucket: "classroomutilization-18389.firebasestorage.app",
+          messagingSenderId: "371077210144",
+          appId: "1:371077210144:web:7127b335d8c6ed98d3dc45",
+          measurementId: "G-DSCE97979P"
+        };
+        </script>
+    <!-- 1. STYLING & LIBRARIES -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&display=swap');
+        
+        .fade-in { animation: fadeIn 0.5s ease-out forwards; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .class-block {
+            position: absolute; inset: 4px; border-radius: 4px; padding: 4px 6px;
+            font-size: 10px; line-height: 1.2; overflow: hidden; border-left-width: 4px; z-index: 10;
+            cursor: pointer; transition: transform 0.1s, z-index 0.1s; box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+            display: flex; flex-direction: column; justify-content: space-between;
+        }
+        .class-block:hover { transform: scale(1.02); z-index: 50; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+        
+        .glass-panel { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); }
+        #loading-overlay { background: rgba(255,255,255,0.8); z-index: 9999; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 h-screen overflow-hidden flex flex-col">
+
+    <!-- LOADING SPINNER -->
+    <div id="loading-overlay" class="fixed inset-0 flex items-center justify-center hidden">
+        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-700"></div>
+    </div>
+
+    <!-- LOGIN VIEW -->
+    <div id="loginView" class="fixed inset-0 z-50 flex items-center justify-center">
+        <div class="absolute inset-0 z-0">
+            <img src="08462bf3-d0f8-4042-89aa-ba0c68abb150.jpg" class="w-full h-full object-cover" onError="this.style.display='none'; this.parentElement.style.backgroundColor='#1e3a8a'">
+            <div class="absolute inset-0 bg-gradient-to-br from-blue-900/90 to-blue-800/80 mix-blend-multiply"></div>
+        </div>
+
+        <div class="relative glass-panel w-full max-w-md rounded-2xl shadow-2xl p-8 border-t-8 border-yellow-400 fade-in mx-4">
+            <div class="text-center mb-8">
+                <div class="w-24 h-24 mx-auto mb-4 flex items-center justify-center">
+                    <img src="LCUP Logo 2020 - updated heart (3) (1).png" class="w-full h-full object-contain drop-shadow-md" onError="this.style.display='none'; document.getElementById('fallback-icon').style.display='block'">
+                    <i id="fallback-icon" class="fas fa-shield-alt text-6xl text-blue-800 hidden"></i>
+                </div>
+                <h1 class="text-xl font-extrabold text-blue-900 tracking-tight">La Consolacion University Philippines</h1>
+                <p class="text-sm font-bold text-blue-600 uppercase tracking-widest mt-1">Classroom Utilization App</p>
+            </div>
+
+            <div id="authError" class="hidden mb-4 p-3 bg-red-50 text-red-700 text-xs rounded border-l-4 border-red-500"></div>
+
+            <form id="authForm" class="space-y-5">
+                <div id="nameField" class="hidden">
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Full Name</label>
+                    <div class="relative">
+                        <i class="fas fa-user-circle absolute left-3 top-3 text-slate-400"></i>
+                        <input type="text" id="regName" class="w-full pl-10 p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Juan Dela Cruz">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Email / Username</label>
+                    <div class="relative">
+                        <i class="fas fa-envelope absolute left-3 top-3 text-slate-400"></i>
+                        <input required type="text" id="email" class="w-full pl-10 p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="admin@lcup.edu.ph">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Password</label>
+                    <div class="relative">
+                        <i class="fas fa-lock absolute left-3 top-3 text-slate-400"></i>
+                        <input required type="password" id="password" class="w-full pl-10 p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="••••••">
+                    </div>
+                </div>
+                <button type="submit" id="authBtn" class="w-full py-3 bg-blue-800 hover:bg-blue-900 text-white font-bold rounded-lg shadow-lg transition transform hover:-translate-y-0.5">
+                    LOGIN TO DASHBOARD
+                </button>
+            </form>
+            
+            <div class="mt-6 text-center text-xs">
+                <span id="authSwitchText" class="text-slate-500">New personnel?</span>
+                <button type="button" id="authSwitchBtn" class="text-blue-700 font-bold hover:underline ml-1">Register Here</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MAIN APP -->
+    <div id="mainApp" class="hidden flex-col min-h-screen bg-slate-50">
+        <!-- Header -->
+        <header class="bg-white shadow-sm border-b border-slate-200 z-40 sticky top-0">
+            <div class="max-w-7xl w-full mx-auto px-4 py-3 flex justify-between items-center">
+                <div class="flex items-center gap-3">
+                    <img src="LCUP Logo 2020 - updated heart (3) (1).png" class="w-8 h-8 object-contain" onError="this.style.display='none'">
+                    <div>
+                        <h1 class="text-lg font-bold text-blue-900 leading-none">La Consolacion University Philippines</h1>
+                        <p class="text-[10px] text-slate-500 uppercase">Classroom Utilization App</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-4">
+                    <div class="text-right hidden sm:block">
+                        <p class="text-[10px] text-slate-400 uppercase">Logged in as</p>
+                        <p class="text-sm font-bold text-slate-800" id="displayUserName">User</p>
+                    </div>
+                    <div class="h-8 w-px bg-slate-200"></div>
+
+                    <!-- Sync controls: Import remote / Push local / Export local -->
+                    <div id="syncControls" class="flex items-center gap-2">
+                        <button id="importRemoteBtn" class="text-xs px-2 py-1 bg-slate-100 rounded hover:bg-slate-200" title="Import remote DB into local">Import Remote</button>
+                        <button id="pushLocalBtn" class="text-xs px-2 py-1 bg-slate-100 rounded hover:bg-slate-200" title="Push local DB to remote">Push Local</button>
+                        <button id="exportLocalBtn" class="text-xs px-2 py-1 bg-slate-100 rounded hover:bg-slate-200" title="Download local data">Export</button>
+                        <div id="syncStatus" class="text-xs text-slate-500 ml-2">SDK: unknown</div>
+                    </div>
+
+                    <button id="logoutBtn" class="text-slate-400 hover:text-red-600 transition" title="Logout">
+                        <i class="fas fa-sign-out-alt text-lg"></i>
+                    </button>
+                </div>
+            </div>
+            <!-- Sub Navigation -->
+            <div class="bg-white border-b border-slate-200">
+                <div class="max-w-7xl w-full mx-auto px-4 flex gap-1">
+                    <button class="nav-btn px-4 py-3 text-sm font-bold border-b-2 border-blue-600 text-blue-700 bg-blue-50" onclick="router('dashboard')" id="nav-dashboard">
+                        <i class="fas fa-chart-pie mr-1"></i> Dashboard
+                    </button>
+                    <button class="nav-btn px-4 py-3 text-sm font-bold border-b-2 border-transparent text-slate-600 hover:bg-slate-50" onclick="router('schedule')" id="nav-schedule">
+                        <i class="fas fa-calendar-alt mr-1"></i> Schedule View
+                    </button>
+                    <button class="nav-btn px-4 py-3 text-sm font-bold border-b-2 border-transparent text-slate-600 hover:bg-slate-50" onclick="router('add')" id="nav-add">
+                        <i class="fas fa-plus-circle mr-1"></i> Add Class
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Content Area -->
+        <main class="flex-1 max-w-7xl w-full mx-auto px-4 py-6 overflow-y-auto custom-scrollbar relative">
+            
+            <!-- DASHBOARD VIEW -->
+            <div id="view-dashboard" class="space-y-6 fade-in">
+                <!-- Welcome Banner -->
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 flex items-start gap-4">
+                    <div class="p-3 bg-blue-100 text-blue-700 rounded-lg hidden sm:block">
+                        <i class="fas fa-columns text-2xl"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-xl font-bold text-slate-900">Welcome to the Classroom Utilization App</h2>
+                        <p class="mt-1 text-sm text-slate-600 leading-relaxed">
+                           This application translates the La Consolacion University Philippines scheduling memorandum into a dynamic tool. 
+                           Manage schedules, check conflicts, and view utilization in real-time.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Stats Cards -->
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div class="bg-white p-4 rounded-lg shadow border-l-4 border-blue-600">
+                        <div class="text-xs font-bold text-slate-400 uppercase">Total Classes</div>
+                        <div class="text-3xl font-bold text-slate-800" id="statTotal">0</div>
+                    </div>
+                    <div class="bg-white p-4 rounded-lg shadow border-l-4 border-emerald-500">
+                        <div class="text-xs font-bold text-slate-400 uppercase">Online (GE)</div>
+                        <div class="text-3xl font-bold text-slate-800" id="statOnline">0</div>
+                    </div>
+                    <div class="bg-white p-4 rounded-lg shadow border-l-4 border-indigo-500">
+                        <div class="text-xs font-bold text-slate-400 uppercase">Evening</div>
+                        <div class="text-3xl font-bold text-slate-800" id="statEvening">0</div>
+                    </div>
+                    <div class="bg-white p-4 rounded-lg shadow border-l-4 border-red-500">
+                        <div class="text-xs font-bold text-slate-400 uppercase">Conflicts</div>
+                        <div class="text-3xl font-bold text-red-600" id="statConflict">0</div>
+                    </div>
+                </div>
+
+                <!-- Main Dashboard Grid -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Policies -->
+                    <div class="space-y-4">
+                        <h3 class="font-bold text-slate-800 flex items-center gap-2"><i class="fas fa-book text-yellow-500"></i> Policies</h3>
+                        <div class="bg-white p-4 rounded-lg border border-slate-200 shadow-sm">
+                            <h4 class="font-bold text-blue-800 text-sm">Hybrid Modality</h4>
+                            <p class="text-xs text-slate-600 mt-1">GE subjects delivered Online.</p>
+                        </div>
+                        <div class="bg-white p-4 rounded-lg border border-slate-200 shadow-sm">
+                            <h4 class="font-bold text-blue-800 text-sm">Face-to-Face</h4>
+                            <p class="text-xs text-slate-600 mt-1">Majors, Pathfit, Theology, NSTP in person.</p>
+                        </div>
+                        <div class="bg-white p-4 rounded-lg border border-slate-200 shadow-sm">
+                            <h4 class="font-bold text-blue-800 text-sm">Evening Venues</h4>
+                            <p class="text-xs text-slate-600 mt-1">Must be in SA or VMC (except AE).</p>
+                        </div>
+                        
+                        <!-- Audit Log -->
+                        <div class="bg-white p-4 rounded-lg border border-slate-200 shadow-sm flex-1">
+                             <h4 class="font-bold text-slate-800 text-sm mb-3 flex items-center gap-2"><i class="fas fa-history"></i> Recent Activity</h4>
+                             <div id="auditLogList" class="space-y-2 max-h-[200px] overflow-y-auto custom-scrollbar text-xs">
+                                 <p class="text-slate-400 italic">No logs yet.</p>
+                             </div>
+                        </div>
+                    </div>
+
+                    <!-- Chart Section -->
+                    <div class="lg:col-span-2 bg-white p-6 rounded-lg shadow border border-slate-200 flex flex-col h-full">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="font-bold text-slate-800">Class Distribution</h3>
+                            <div class="flex items-center gap-2 bg-slate-100 p-1 rounded">
+                                <i class="fas fa-filter text-slate-400 text-xs ml-1"></i>
+                                <select id="dashFilter" class="bg-transparent text-xs font-bold text-slate-600 outline-none">
+                                    <!-- Populated by JS -->
+                                </select>
+                            </div>
+                        </div>
+                        <div class="relative flex-1 w-full min-h-[300px]">
+                            <canvas id="roomChart"></canvas>
+                        </div>
+                        <!-- Utilization Stat Hidden but used for calculation -->
+                        <div id="statUtil" class="hidden"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SCHEDULE VIEW -->
+            <div id="view-schedule" class="hidden h-full flex flex-col fade-in">
+                <div class="bg-white p-4 rounded-xl shadow border border-slate-200 mb-4 flex justify-between items-center">
+                    <h2 class="font-bold text-lg text-slate-800">Master Schedule</h2>
+                    <div class="flex items-center gap-2">
+                        <label class="text-xs font-bold text-slate-500">Filter Room:</label>
+                        <select id="gridFilter" class="border border-slate-300 rounded p-1.5 text-sm bg-slate-50 w-48 outline-none focus:border-blue-500">
+                            <option value="All">All Rooms</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="bg-white rounded-xl shadow border border-slate-200 overflow-hidden flex-1 relative">
+                    <div class="overflow-auto h-full custom-scrollbar">
+                        <div id="scheduleGrid" class="grid grid-cols-7 min-w-[1000px]">
+                            <!-- Generated by JS -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+                <!-- SCHEDULE VIEW -->
+                <div id="view-schedule" class="hidden h-full flex flex-col fade-in">
+                    <div class="bg-white p-4 rounded-xl shadow border border-slate-200 mb-4 flex justify-between items-center">
+                        <h2 class="font-bold text-lg text-slate-800">Master Schedule</h2>
+                        <div class="flex items-center gap-2">
+                            <label class="text-xs font-bold text-slate-500">Filter Room:</label>
+                            <!-- Options are populated by JS on load (see DOMContentLoaded populate call) -->
+                            <select id="gridFilter" class="border border-slate-300 rounded p-1.5 text-sm bg-slate-50 w-48 outline-none focus:border-blue-500">
+                                <option value="All">All</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-xl shadow border border-slate-200 overflow-hidden flex-1 relative">
+                        <div class="overflow-auto h-full custom-scrollbar">
+                            <!-- scheduleGrid is rendered by JS (renderGrid). Keep it empty here so JS can generate headers and cells. -->
+                            <div id="scheduleGrid" class="grid grid-cols-7 min-w-[1000px]"></div>
+                        </div>
+                    </div>
+                </div>
+
+            <!-- ADD/EDIT CLASS VIEW -->
+            <div id="view-add" class="hidden fade-in max-w-2xl mx-auto">
+                <div class="bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden">
+                    <div class="bg-slate-50 px-6 py-4 border-b border-slate-200 flex justify-between items-center">
+                        <h2 id="formTitle" class="text-lg font-bold text-blue-900 flex items-center gap-2"><i class="fas fa-plus-circle"></i> Add New Class</h2>
+                        <button type="button" id="cancelEditBtn" class="hidden text-xs text-red-600 hover:text-red-800 font-bold"><i class="fas fa-times"></i> Cancel Edit</button>
+                    </div>
+                    
+                    <div id="warningBox" class="hidden mx-6 mt-4 bg-orange-50 p-3 text-xs text-orange-800 rounded border-l-4 border-orange-500"></div>
+
+                    <form id="classForm" class="p-6 space-y-5">
+                        <input type="hidden" id="editId">
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Course Name</label>
+                                <input type="text" id="course" required class="w-full p-2 border border-slate-300 rounded focus:border-blue-500 outline-none" placeholder="e.g., Data Structures">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Section</label>
+                                <input type="text" id="section" required class="w-full p-2 border border-slate-300 rounded focus:border-blue-500 outline-none" placeholder="e.g., BSIT-2A">
+                            </div>
+                        </div>
+
+                        <!-- NEW COLLEGE DROPDOWN -->
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                             <div class="col-span-1">
+                                <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Department / College</label>
+                                <select id="college" class="w-full p-2 border border-slate-300 rounded focus:border-blue-500 outline-none bg-white">
+                                    <!-- JS populated -->
+                                </select>
+                            </div>
+                            <div class="col-span-1">
+                                <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Type</label>
+                                <select id="type" class="w-full p-2 border border-slate-300 rounded focus:border-blue-500 outline-none bg-white">
+                                    <!-- JS populated -->
+                                </select>
+                            </div>
+                            <div class="col-span-1">
+                                <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Room</label>
+                                <select id="room" class="w-full p-2 border border-slate-300 rounded focus:border-blue-500 outline-none bg-white">
+                                    <!-- JS populated -->
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Day</label>
+                                <select id="day" class="w-full p-2 border border-slate-300 rounded focus:border-blue-500 outline-none bg-white">
+                                    <option>Monday</option><option>Tuesday</option><option>Wednesday</option><option>Thursday</option><option>Friday</option><option>Saturday</option>
+                                </select>
+                            </div>
+                            <!-- DURATION FIRST -->
+                            <div>
+                                <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Duration</label>
+                                <select id="duration" class="w-full p-2 border border-slate-300 rounded focus:border-blue-500 outline-none bg-white">
+                                    <option value="1.5">1.5 Hours</option>
+                                    <option value="3">3 Hours</option>
+                                    <option value="4.5">4.5 Hours</option>
+                                    <option value="5">5 Hours</option>
+                                </select>
+                            </div>
+                            <!-- START TIME (Input) -->
+                            <div>
+                                <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Start Time</label>
+                                <input type="time" id="startTime" required class="w-full p-2 border border-slate-300 rounded focus:border-blue-500 outline-none bg-white">
+                                <!-- Auto-calculated End Time Display -->
+                                <p id="endTimeDisplay" class="text-[10px] text-blue-600 mt-1 font-bold"></p>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Instructor</label>
+                            <input type="text" id="instructor" class="w-full p-2 border border-slate-300 rounded focus:border-blue-500 outline-none" placeholder="Faculty Name">
+                        </div>
+
+                        <div class="pt-4 flex justify-end gap-3 border-t border-slate-100">
+                            <button type="button" id="formCancelBtn" class="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded text-sm font-bold">Cancel</button>
+                            <button type="submit" id="saveBtn" class="px-6 py-2 bg-blue-700 text-white font-bold rounded hover:bg-blue-800 text-sm shadow">Save Class</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- 5. JAVASCRIPT LOGIC -->
+    <script>
+        // --- CONFIG & CONSTANTS ---
+        const COLLEGES = ["AE", "BED K-10", "BED SHS", "CASE", "CBEA", "CITE", "CITHM", "CAMP", "COM"];
+
+        const ROOMS = [
+            "Online",
+            "SA 301", "SA 302", "SA 304", "SA 305", "SA 401", "SA 402", "SA 405", "SA 501", "SA 502",
+            "SN 101", "SN 102", "SN 103", "SN 104", "SN 105", "SN 202", "SN 203", "SN 205", "SN 206",
+            "PP 101", "PP 102", "PP 103", "PP 104", "PP 106", "PP 107", "PP 108", "PP 109", "PP 110", "PP 111", "PP 112",
+            "PP 201", "PP 202", "PP 203", "PP 206", "PP 207", "PP 208", "PP 209",
+            "PP 301", "PP 302", "PP 303", "PP 304", "PP 305", "PP 401", "PP 402", "PP 403", "PP 404",
+            "MR 101", "MR 102", "MR 103", "MR 104", "MR 105", "MR 106", "MR 107", "MR 116", "MR 119", "MR 121", "MR 123", "MR 125", "MR 127",
+            "MR 201", "MR 204", "MR 205", "MR 206", "MR 207", "MR 208", "MR 209", "MR 210", "MR 211", "MR 214", "MR 216", "MR 218", "MR 219", "MR 221", "MR 222", "MR 223", "MR 224", "MR 225", "MR 226", "MR 227",
+            "VMC 401", "VMC 402", "VMC 407", "VMC 501A", "VMC 501B",
+            "Lecture Room 1",
+            "MM 201", "MM 202", "MM 203", "MM 204"
+        ];
+        const BUILDINGS = ["All Buildings", "Admin (SA)", "SN Bldg", "Padre Pio (PP)", "Mo. Rita Barcelo Bldg (MR)", "VMC", "CITHM", "AE (MM)", "Online"];
+        
+        // FIXED SCHEDULE SLOTS (1.5-hour blocks for grid visual reference)
+        const SCHEDULE_SLOTS = [
+            "7:30-9:00", "9:00-10:30", "10:30-12:00", 
+            "1:00-2:30", "2:30-4:00", "4:00-5:30", "5:30-7:00"
+        ];
+        
+        const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+        const TYPES = [
+            {id:'GE', l:'Gen Ed (Online)'}, {id:'PROF', l:'Professional (F2F)'}, 
+            {id:'PATHFIT', l:'Pathfit'}, {id:'THEO', l:'Theology'}, {id:'NSTP', l:'NSTP'}
+        ];
+
+        // --- PERSISTENCE LAYER (localStorage + Firebase REST sync) ---
+        // Firebase Realtime Database base URL (provided by user)
+        const FIREBASE_BASE = 'https://classroomutilization-18389-default-rtdb.asia-southeast1.firebasedatabase.app';
+
+        // If you want the app to initialize the Firebase SDK automatically,
+        // paste your Firebase web config into `window.FIREBASE_CONFIG` below.
+        // The object below was provided and will enable the compat SDK loader.
+        window.FIREBASE_CONFIG = {
+            apiKey: "AIzaSyBo-IfNgYIwsW_yqkSDFY85qbFOoDKHND4",
+            authDomain: "classroomutilization-18389.firebaseapp.com",
+            projectId: "classroomutilization-18389",
+            storageBucket: "classroomutilization-18389.firebasestorage.app",
+            messagingSenderId: "371077210144",
+            appId: "1:371077210144:web:7127b335d8c6ed98d3dc45",
+            measurementId: "G-DSCE97979P"
+        };
+
+        // Lightweight helpers for the Firebase Realtime DB REST API.
+        // If the Firebase JS SDK is available and initialized (see loadFirebaseSDK()),
+        // the SDK will be used instead of REST.
+        let USE_FIREBASE_SDK = false;
+
+        async function loadFirebaseSDKIfConfigured() {
+            if(!window.FIREBASE_CONFIG) return;
+            if(USE_FIREBASE_SDK) return;
+
+            // Load compat SDKs (easier migration for this codebase)
+            const scripts = [
+                'https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js',
+                'https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js',
+                'https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js'
+            ];
+
+            await Promise.all(scripts.map(src => new Promise((resolve, reject) => {
+                const s = document.createElement('script');
+                s.src = src; s.onload = resolve; s.onerror = reject; s.async = true;
+                document.head.appendChild(s);
+            })));
+
+            try {
+                firebase.initializeApp(window.FIREBASE_CONFIG);
+                // Sign in anonymously so DB rules with auth can be used if configured
+                if(firebase && firebase.auth) {
+                    await firebase.auth().signInAnonymously();
+                }
+                USE_FIREBASE_SDK = true;
+                console.info('Firebase SDK loaded and initialized');
+                setSyncStatus('SDK: ready (anonymous auth)');
+            } catch (e) {
+                console.warn('Failed to init Firebase SDK', e);
+                USE_FIREBASE_SDK = false;
+                setSyncStatus('SDK: failed to init');
+            }
+        }
+
+        async function firebaseGet(key) {
+            try {
+                if(USE_FIREBASE_SDK && window.firebase && firebase.database) {
+                    const snap = await firebase.database().ref(key).once('value');
+                    return snap.val();
+                }
+                const res = await fetch(`${FIREBASE_BASE}/${key}.json`);
+                if(!res.ok) throw new Error('Firebase GET failed');
+                return await res.json();
+            } catch (err) {
+                console.warn('firebaseGet error', err);
+                return null;
+            }
+        }
+
+        async function firebasePut(key, val) {
+            try {
+                if(USE_FIREBASE_SDK && window.firebase && firebase.database) {
+                    await firebase.database().ref(key).set(val);
+                    return val;
+                }
+                const res = await fetch(`${FIREBASE_BASE}/${key}.json`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(val)
+                });
+                if(!res.ok) throw new Error('Firebase PUT failed');
+                return await res.json();
+            } catch (err) {
+                console.warn('firebasePut error', err);
+                return null;
+            }
+        }
+
+        // Sync initial data from Firebase into localStorage. This preserves existing synchronous
+        // access patterns in the app while making Firebase the canonical remote store.
+        async function syncFromFirebase() {
+            const keys = ['lcup_classes', 'lcup_logs', 'lcup_users', 'lcup_current_user'];
+            let any = false;
+            for(const k of keys) {
+                const data = await firebaseGet(k);
+                if(data !== null) {
+                    // firebase returns object/array or null; store as-is
+                    localStorage.setItem(k, JSON.stringify(data));
+                    any = true;
+                }
+            }
+            return any;
+        }
+
+        // Import remote data into localStorage (user-initiated). Returns true if any data imported.
+        async function importRemoteData() {
+            const confirmMsg = 'Import remote data will overwrite local schedule data. Continue?';
+            if(!confirm(confirmMsg)) return false;
+            showLoading();
+            try {
+                await loadFirebaseSDKIfConfigured();
+                // Non-destructive merge strategy:
+                // - For arrays with `id` (lcup_classes, lcup_users) merge by `id`, preferring local versions on conflict.
+                // - For logs (lcup_logs) dedupe by JSON string to avoid duplicates and append missing entries.
+                const remote = {};
+                const keys = ['lcup_classes', 'lcup_logs', 'lcup_users', 'lcup_current_user'];
+                for(const k of keys) {
+                    remote[k] = await firebaseGet(k);
+                }
+
+                let merged = false;
+
+                // Merge classes by id
+                if(Array.isArray(remote['lcup_classes'])) {
+                    const localClasses = DB.get('lcup_classes') || [];
+                    const byId = {};
+                    localClasses.forEach(c => { if(c && c.id) byId[c.id] = c; });
+                    remote['lcup_classes'].forEach(rc => { if(rc && rc.id && !byId[rc.id]) byId[rc.id] = rc; });
+                    const mergedClasses = Object.values(byId).sort((a,b) => (a.id||0)-(b.id||0));
+                    DB.set('lcup_classes', mergedClasses);
+                    merged = true;
+                }
+
+                // Merge users by id or email
+                if(Array.isArray(remote['lcup_users'])) {
+                    const localUsers = DB.get('lcup_users') || [];
+                    const byKey = {};
+                    localUsers.forEach(u => { const k = u.id || u.email; if(k) byKey[k] = u; });
+                    remote['lcup_users'].forEach(ru => { const k = ru.id || ru.email; if(k && !byKey[k]) byKey[k] = ru; });
+                    const mergedUsers = Object.values(byKey);
+                    DB.set('lcup_users', mergedUsers);
+                    merged = true;
+                }
+
+                // Merge logs by JSON stringify (dedupe)
+                if(Array.isArray(remote['lcup_logs'])) {
+                    const localLogs = DB.get('lcup_logs') || [];
+                    const setS = new Set(localLogs.map(l => JSON.stringify(l)));
+                    const combined = localLogs.slice();
+                    remote['lcup_logs'].forEach(rl => { const s = JSON.stringify(rl); if(!setS.has(s)) { setS.add(s); combined.push(rl); } });
+                    DB.set('lcup_logs', combined);
+                    merged = true;
+                }
+
+                // Current user: keep local if present, otherwise adopt remote
+                if(remote['lcup_current_user'] !== null && remote['lcup_current_user'] !== undefined) {
+                    const localCur = DB.get('lcup_current_user');
+                    if((!localCur || (Array.isArray(localCur) && localCur.length === 0) || !localCur.length) && remote['lcup_current_user']) {
+                        DB.set('lcup_current_user', remote['lcup_current_user']);
+                        merged = true;
+                    }
+                }
+
+                if(merged) {
+                    state.classes = DB.get('lcup_classes');
+                    state.logs = DB.get('lcup_logs');
+                    try { const cur = DB.get('lcup_current_user'); if(cur && cur.length) state.currentUser = cur[0]; } catch(e){}
+                    updateUI();
+                    const now = new Date().toLocaleString();
+                    localStorage.setItem('lcup_last_sync', now);
+                    setSyncStatus('Imported (merged): ' + now);
+                    alert('Import complete (merged).');
+                    return true;
+                } else {
+                    alert('No remote data found to merge.');
+                    setSyncStatus('Import: no remote data');
+                    return false;
+                }
+            } catch (e) {
+                console.error(e);
+                alert('Import failed: ' + (e.message || e));
+                return false;
+            } finally { hideLoading(); }
+        }
+
+        // Push local data to remote (user-initiated). Overwrites remote.
+        async function pushLocalToRemote() {
+            const confirmMsg = 'Push local data to remote will overwrite remote DB. Continue?';
+            if(!confirm(confirmMsg)) return false;
+            showLoading();
+            try {
+                await loadFirebaseSDKIfConfigured();
+                const keys = ['lcup_classes', 'lcup_logs', 'lcup_users', 'lcup_current_user'];
+                for(const k of keys) {
+                    const val = DB.get(k);
+                    await firebasePut(k, val);
+                }
+                const now = new Date().toLocaleString();
+                alert('Push complete.');
+                localStorage.setItem('lcup_last_sync', now);
+                setSyncStatus('Pushed: ' + now);
+                return true;
+            } catch (e) {
+                console.error(e);
+                alert('Push failed: ' + (e.message || e));
+                return false;
+            } finally { hideLoading(); }
+        }
+
+        // Export local data as JSON file for backup
+        function exportLocalData() {
+            const data = {
+                lcup_classes: DB.get('lcup_classes'),
+                lcup_logs: DB.get('lcup_logs'),
+                lcup_users: DB.get('lcup_users'),
+                lcup_current_user: DB.get('lcup_current_user')
+            };
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `lcup_backup_${new Date().toISOString().replace(/[:.]/g,'-')}.json`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            URL.revokeObjectURL(url);
+        }
+
+        // DB wrapper keeps same synchronous get/set/add/update/delete behavior, but set() will
+        // push the full value to Firebase in the background. This design avoids refactoring
+        // calling code to async/await.
+        const DB = {
+            get: (key) => {
+                try { return JSON.parse(localStorage.getItem(key) || '[]'); }
+                catch (e) { return [] }
+            },
+            set: (key, val) => {
+                try { localStorage.setItem(key, JSON.stringify(val)); }
+                catch (e) { console.warn('localStorage.set error', e); }
+                // Fire-and-forget push to Firebase; failures are logged but non-fatal.
+                firebasePut(key, val).catch(() => {});
+            },
+            add: (key, item) => {
+                const data = DB.get(key);
+                data.push(item);
+                DB.set(key, data);
+                return item;
+            },
+            update: (key, id, updates) => {
+                const data = DB.get(key);
+                const idx = data.findIndex(d => d.id === id);
+                if(idx !== -1) {
+                    data[idx] = { ...data[idx], ...updates };
+                    DB.set(key, data);
+                }
+            },
+            delete: (key, id) => {
+                const data = DB.get(key);
+                const newData = data.filter(d => d.id !== id);
+                DB.set(key, newData);
+            }
+        };
+
+        let state = {
+            classes: [],
+            logs: [],
+            currentUser: null,
+            editingId: null,
+            authMode: 'login',
+            chartInstance: null
+        };
+
+        // --- UTILS ---
+        function setText(id, txt) {
+            const el = document.getElementById(id);
+            if(el) el.innerText = txt;
+        }
+        function setSyncStatus(txt) {
+            const el = document.getElementById('syncStatus');
+            if(el) el.innerText = txt;
+            try { localStorage.setItem('lcup_last_sync_status', txt); } catch(e){}
+        }
+        function showLoading() { document.getElementById('loading-overlay').classList.remove('hidden'); }
+        function hideLoading() { document.getElementById('loading-overlay').classList.add('hidden'); }
+
+        // --- GLOBAL HELPER TO FIX SCOPE ---
+        // Converts "07:30", "7:30" or a slot string like "7:30-9:00" to 7.5 or 13.5
+        window.getStartHourFromInput = function(timeStr) {
+            if(!timeStr) return 0;
+            // If a slot like "7:30-9:00" is provided, take the left side
+            const left = (timeStr + '').split('-')[0].trim();
+            const parts = left.split(':');
+            const hStr = parts[0] || '0';
+            const mStr = parts[1] || '0';
+            return parseInt(hStr) + (parseInt(mStr)/60);
+        }
+        
+        window.formatHour = function(h) {
+            let mod = h >= 12 ? 'PM' : 'AM';
+            let hr = Math.floor(h % 12) || 12;
+            let min = Math.round((h % 1) * 60);
+            return `${hr < 10 ? '0'+hr : hr}:${min < 10 ? '0'+min : min} ${mod}`;
+        }
+
+        // --- INIT ---
+        window.addEventListener('DOMContentLoaded', async () => {
+            // If the developer has supplied `window.FIREBASE_CONFIG`, load the Firebase SDK
+            // and sign-in anonymously first so SDK-based operations (with rules requiring auth)
+            // can succeed. IMPORTANT: do NOT auto-overwrite local data on startup.
+            // Provide explicit controls in the UI so the user chooses when to import/overwrite.
+            await loadFirebaseSDKIfConfigured();
+            // Initialize UI sync status from stored value
+            try {
+                const last = localStorage.getItem('lcup_last_sync');
+                if(last) setSyncStatus('Last sync: ' + last);
+                else if(window.FIREBASE_CONFIG) setSyncStatus('SDK ready (no sync yet)');
+                else setSyncStatus('SDK: not configured (REST fallback)');
+            } catch(e) {}
+            // Check Auth
+            const savedUser = localStorage.getItem('lcup_current_user');
+            if (savedUser) {
+                loginUser(JSON.parse(savedUser));
+            }
+
+            // Fix Bad Data
+            sanitizeData();
+
+            // Init UI
+            const populate = (id, arr) => {
+                const el = document.getElementById(id);
+                if(el) el.innerHTML = arr.map(x => `<option value="${x}">${x}</option>`).join('');
+            };
+            populate('room', ROOMS);
+            
+            // Updated Dashboard Filter Logic to include Colleges
+            const dashFilterEl = document.getElementById('dashFilter');
+            if(dashFilterEl) {
+                const options = ["All Buildings", "College", ...BUILDINGS.slice(1)]; // Add 'College' as a filter option
+                dashFilterEl.innerHTML = options.map(x => `<option value="${x}">${x}</option>`).join('');
+            }
+
+            populate('gridFilter', ['All', ...ROOMS]);
+            
+            // NO AUTO POPULATE START TIME, IT IS NOW AN INPUT
+
+            const typeEl = document.getElementById('type');
+            if(typeEl) typeEl.innerHTML = TYPES.map(t => `<option value="${t.id}">${t.l}</option>`).join('');
+
+            // Populate College Dropdown
+            const collegeEl = document.getElementById('college');
+            if(collegeEl) collegeEl.innerHTML = COLLEGES.map(c => `<option value="${c}">${c}</option>`).join('');
+            
+            // Init Data
+            state.classes = DB.get('lcup_classes');
+            state.logs = DB.get('lcup_logs');
+
+            // Event Listeners
+            document.getElementById('gridFilter').addEventListener('change', renderGrid);
+            document.getElementById('dashFilter').addEventListener('change', updateChart); // Changed to updateChart to handle logic
+            document.getElementById('type').addEventListener('change', handleTypeChange);
+            // Sync control listeners
+            const impBtn = document.getElementById('importRemoteBtn');
+            if(impBtn) impBtn.addEventListener('click', () => importRemoteData());
+            const pushBtn = document.getElementById('pushLocalBtn');
+            if(pushBtn) pushBtn.addEventListener('click', () => pushLocalToRemote());
+            const expBtn = document.getElementById('exportLocalBtn');
+            if(expBtn) expBtn.addEventListener('click', () => exportLocalData());
+            
+            // Add listeners to form inputs for real-time validation
+            ['room', 'type', 'startTime', 'duration', 'day'].forEach(id => {
+                const el = document.getElementById(id);
+                if(el) el.addEventListener('change', validateForm);
+            });
+        });
+
+        // Data Sanitizer
+        function sanitizeData() {
+            let data = DB.get('lcup_classes');
+            let dirty = false;
+            data = data.map(c => {
+                if (typeof c.duration === 'string') {
+                    c.duration = parseFloat(c.duration);
+                    dirty = true;
+                }
+                return c;
+            });
+            if(dirty) DB.set('lcup_classes', data);
+        }
+
+        // --- AUTH FUNCTIONS ---
+        document.getElementById('authSwitchBtn').onclick = (e) => {
+            e.preventDefault(); 
+            state.authMode = state.authMode === 'login' ? 'register' : 'login';
+            
+            const btn = document.getElementById('authBtn');
+            const switchText = document.getElementById('authSwitchText');
+            const switchBtn = document.getElementById('authSwitchBtn');
+            const nameField = document.getElementById('nameField');
+            const regNameInput = document.getElementById('regName');
+            const errorEl = document.getElementById('authError');
+
+            if (state.authMode === 'register') {
+                btn.innerText = 'CREATE ACCOUNT';
+                switchText.innerText = 'Have an account?';
+                switchBtn.innerText = 'Login Here';
+                nameField.classList.remove('hidden');
+                regNameInput.setAttribute('required', 'true');
+            } else {
+                btn.innerText = 'LOGIN TO DASHBOARD';
+                switchText.innerText = 'New personnel?';
+                switchBtn.innerText = 'Register Here';
+                nameField.classList.add('hidden');
+                regNameInput.removeAttribute('required');
+            }
+            
+            if (errorEl) errorEl.classList.add('hidden');
+        };
+
+        document.getElementById('authForm').onsubmit = (e) => {
+            e.preventDefault();
+            showLoading();
+            const email = document.getElementById('email').value;
+            const pass = document.getElementById('password').value;
+            const name = document.getElementById('regName').value;
+            const errEl = document.getElementById('authError');
+            errEl.classList.add('hidden');
+
+            setTimeout(() => {
+                const users = DB.get('lcup_users');
+                
+                if (state.authMode === 'login') {
+                    const user = users.find(u => (u.email === email || u.name === email) && u.password === pass);
+                    if (user) {
+                        loginUser(user);
+                    } else {
+                        errEl.innerText = "Invalid credentials.";
+                        errEl.classList.remove('hidden');
+                    }
+                } else {
+                    if (users.find(u => u.email === email)) {
+                        errEl.innerText = "User already exists.";
+                        errEl.classList.remove('hidden');
+                    } else {
+                        const newUser = { name, email, password: pass };
+                        DB.add('lcup_users', newUser);
+                        loginUser(newUser);
+                    }
+                }
+                hideLoading();
+            }, 800);
+        };
+
+        function loginUser(user) {
+            state.currentUser = user;
+            localStorage.setItem('lcup_current_user', JSON.stringify(user));
+            const dispName = document.getElementById('displayUserName');
+            if(dispName) dispName.innerText = user.name;
+            document.getElementById('loginView').classList.add('hidden');
+            document.getElementById('mainApp').classList.remove('hidden');
+            document.getElementById('mainApp').classList.add('flex');
+            updateUI();
+        }
+
+        document.getElementById('logoutBtn').onclick = () => {
+            state.currentUser = null;
+            localStorage.removeItem('lcup_current_user');
+            document.getElementById('mainApp').classList.add('hidden');
+            document.getElementById('mainApp').classList.remove('flex');
+            document.getElementById('loginView').classList.remove('hidden');
+            document.getElementById('authForm').reset();
+        };
+
+        // --- UI UPDATES ---
+        function updateUI() {
+            if(!state.currentUser) return;
+            
+            const online = state.classes.filter(c => c.room === 'Online').length;
+            const evening = state.classes.filter(c => c.startTime && (c.startTime.includes('17:30') || c.startTime.includes('19:00'))).length;
+            const conflicts = state.classes.reduce((acc, c) => acc + (checkOverlap(c, c.id) ? 1 : 0), 0);
+            
+            setText('statTotal', state.classes.length);
+            setText('statOnline', online);
+            setText('statEvening', evening);
+            setText('statConflict', conflicts > 0 ? "!" : "0");
+            
+            const totalSlots = ROOMS.length * SCHEDULE_SLOTS.length * 6;
+            const usedSlots = state.classes.reduce((acc, c) => acc + parseFloat(c.duration), 0); 
+            setText('statUtil', Math.round((usedSlots / totalSlots) * 100) + "%");
+
+            renderLogs();
+            updateChart();
+            renderGrid();
+        }
+
+        function renderLogs() {
+            const el = document.getElementById('auditLogList');
+            if(!el) return;
+            const logs = DB.get('lcup_logs').reverse().slice(0, 20);
+            if(logs.length === 0) {
+                el.innerHTML = '<p class="text-slate-400 italic p-2">No logs yet.</p>';
+                return;
+            }
+            el.innerHTML = logs.map(l => `
+                <div class="flex gap-3 items-start p-2 border-b border-slate-100 last:border-0">
+                   <div class="mt-0.5 p-1 rounded-full ${l.action==='DELETE'?'bg-red-100 text-red-600':(l.action==='UPDATE'?'bg-yellow-100 text-yellow-600':'bg-blue-100 text-blue-600')}">
+                     <i class="fas ${l.action==='DELETE'?'fa-trash':(l.action==='UPDATE'?'fa-pencil-alt':'fa-plus')} text-[10px]"></i>
+                   </div>
+                   <div>
+                     <span class="font-bold text-slate-700 mr-1">${l.user}</span>
+                     <span class="text-slate-500 text-[10px]">${l.action === 'DELETE' ? 'deleted' : (l.action === 'UPDATE' ? 'updated' : 'added')}</span>
+                     <div class="text-slate-800 font-medium">${l.details}</div>
+                     <div class="text-[9px] text-slate-400">${l.time}</div>
+                   </div>
+                </div>`).join('');
+        }
+
+        function updateChart() {
+            const canvas = document.getElementById('roomChart');
+            if(!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const dashFilter = document.getElementById('dashFilter');
+            const filterValue = dashFilter ? dashFilter.value : 'All Buildings';
+            
+            let labels = [];
+            let data = [];
+
+            if (filterValue === 'College') {
+                labels = COLLEGES;
+                data = labels.map(col => state.classes.filter(c => c.college === col).length);
+            } else {
+                let activeRooms = ROOMS;
+                if (filterValue !== 'All Buildings') {
+                    activeRooms = ROOMS.filter(r => getBldg(r) === filterValue);
+                }
+                labels = activeRooms.filter(r => {
+                    if (filterValue !== 'All Buildings') return true; 
+                    return state.classes.some(c => c.room === r);
+                });
+                data = labels.map(r => state.classes.filter(c => c.room === r).length);
+            }
+
+            if (state.chartInstance) state.chartInstance.destroy();
+            state.chartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: filterValue === 'College' ? 'Classes per College' : 'Classes per Room',
+                        data: data,
+                        backgroundColor: '#1D4ED8',
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: { x: { ticks: { autoSkip: false, maxRotation: 90, minRotation: 90, font: {size: 10} } } }
+                }
+            });
+        }
+
+        function renderGrid() {
+            const grid = document.getElementById('scheduleGrid');
+            if(!grid) return;
+            console.debug('renderGrid() called — state.classes count =', state.classes ? state.classes.length : 0);
+            if(!state.classes || state.classes.length === 0) {
+                grid.innerHTML = '<div class="p-6 text-center text-slate-400">No classes found in local data. Try Import Remote or add a class.</div>';
+                return;
+            }
+            grid.innerHTML = '';
+            console.table(state.classes.slice(0,20));
+            
+            // Headers
+            grid.innerHTML += `<div class="p-2 bg-slate-100 font-bold text-center text-xs sticky top-0 z-20 border-r border-b border-slate-200 text-slate-500 h-12 flex items-center justify-center">Time</div>`;
+            DAYS.forEach(d => grid.innerHTML += `<div class="p-2 bg-slate-100 font-bold text-center text-xs sticky top-0 z-20 border-r border-b border-slate-200 text-slate-700 h-12 flex items-center justify-center">${d}</div>`);
+            
+            const filterEl = document.getElementById('gridFilter');
+            const filter = filterEl ? filterEl.value : 'All';
+
+            SCHEDULE_SLOTS.forEach((t, index) => {
+                // Row Label
+                grid.innerHTML += `<div class="p-2 border-b border-r border-slate-200 text-center text-xs font-bold text-slate-400 sticky left-0 bg-slate-50 z-10 h-32 flex items-center justify-center">${t}</div>`;
+                
+                // Cells
+                DAYS.forEach(d => {
+                    const div = document.createElement('div');
+                    div.className = "border-b border-r border-slate-200 relative h-32 hover:bg-blue-50 transition-colors"; 
+                    
+                    state.classes.forEach(c => {
+                        if(filter !== 'All' && c.room !== filter) return;
+                        
+                        // Match on Time Slot String exactly OR by numeric startTime mapping
+                        if(c.day === d && classOccupiesSlot(c, t)) {
+                            const block = document.createElement('div');
+                            const isOnline = c.room === 'Online';
+                            
+                            block.className = `class-block ${isOnline ? 'bg-emerald-100 border-emerald-500 text-emerald-900' : 'bg-blue-100 border-blue-600 text-blue-900'}`;
+                            
+                            // Height Calculation:
+                            // Base unit is 1.5 hours = 1 row = h-32 (8rem).
+                            // Height in rem = (duration / 1.5) * 8.
+                            const rowsSpanned = c.duration / 1.5;
+                            const heightInRem = rowsSpanned * 8;
+
+                            block.style.height = `calc(${heightInRem}rem - 8px)`;
+                            block.style.zIndex = 20; 
+
+                            block.innerHTML = `
+                                <div class="font-bold truncate">${c.course}</div>
+                                <div class="truncate opacity-80">${c.section} • ${c.room}</div>
+                                <div class="truncate opacity-80 text-[9px] text-slate-600 font-semibold">${c.college || ''}</div>
+                                <div class="truncate text-[10px] italic mt-0.5 text-slate-600">${c.instructor || 'TBA'}</div>
+                                <div class="mt-auto pt-1 flex justify-between items-end">
+                                    <div class="flex gap-1 z-30 relative pointer-events-auto">
+                                        <button class="block-btn bg-white p-1 rounded shadow text-blue-600 hover:bg-blue-50" title="Edit" onclick="window.loadEdit(${c.id}); event.stopPropagation();"><i class="fas fa-pencil-alt"></i></button>
+                                        <button class="block-btn bg-white p-1 rounded shadow text-red-600 hover:bg-red-50" title="Delete" onclick="window.deleteClass(${c.id}, '${c.course}'); event.stopPropagation();"><i class="fas fa-trash"></i></button>
+                                    </div>
+                                    <div class="text-[9px] text-slate-500 bg-white/60 px-1 rounded truncate max-w-[60px]">${(c.createdBy || 'Admin').split(' ')[0]}</div>
+                                </div>`;
+                            
+                            div.appendChild(block);
+                        }
+                    });
+                    grid.appendChild(div);
+                });
+            });
+        }
+
+        // --- ACTIONS (CRUD) ---
+
+        window.loadEdit = (id) => {
+            const c = state.classes.find(x => x.id === id);
+            if(!c) return;
+            state.editingId = id;
+            document.getElementById('editId').value = id;
+            document.getElementById('course').value = c.course;
+            document.getElementById('section').value = c.section;
+            document.getElementById('college').value = c.college || COLLEGES[0]; 
+            document.getElementById('type').value = c.subjectType;
+            document.getElementById('room').value = c.room;
+            document.getElementById('day').value = c.day;
+            // set startTime input to stored HH:MM (`startTime`) or derive from `timeSlot` if needed
+            const startInput = document.getElementById('startTime');
+            if(startInput) {
+                if(c.startTime) {
+                    startInput.value = c.startTime;
+                } else if(c.timeSlot) {
+                    // derive left part of slot e.g. "7:30-9:00" -> "07:30"
+                    const left = (c.timeSlot + '').split('-')[0].trim();
+                    const [hh, mm] = left.split(':');
+                    const hhP = hh && hh.length === 1 ? '0'+hh : hh;
+                    startInput.value = `${hhP}:${(mm||'00')}`;
+                } else {
+                    startInput.value = '';
+                }
+            }
+            document.getElementById('duration').value = c.duration || '1.5';
+            document.getElementById('instructor').value = c.instructor || '';
+            
+            const titleEl = document.getElementById('formTitle');
+            if(titleEl) titleEl.innerHTML = '<i class="fas fa-pencil-alt"></i> Edit Class';
+            document.getElementById('cancelEditBtn').classList.remove('hidden');
+            router('add');
+            validateForm();
+        };
+
+        window.deleteClass = (id, name) => {
+            if(!confirm(`Delete ${name}?`)) return;
+            showLoading();
+            setTimeout(() => {
+                DB.delete('lcup_classes', id);
+                DB.add('lcup_logs', {
+                    action: 'DELETE', details: `Deleted class: ${name}`, user: state.currentUser.name, time: new Date().toLocaleString()
+                });
+                state.classes = DB.get('lcup_classes');
+                state.logs = DB.get('lcup_logs');
+                updateUI();
+                hideLoading();
+            }, 300);
+        };
+
+        document.getElementById('classForm').onsubmit = (e) => {
+            e.preventDefault();
+            const form = {
+                course: document.getElementById('course').value,
+                section: document.getElementById('section').value,
+                college: document.getElementById('college').value,
+                subjectType: document.getElementById('type').value,
+                room: document.getElementById('room').value,
+                day: document.getElementById('day').value,
+                // store both `startTime` (HH:MM) and `timeSlot` (visual slot string if mappable)
+                startTime: document.getElementById('startTime').value,
+                timeSlot: null,
+                duration: parseFloat(document.getElementById('duration').value),
+                instructor: document.getElementById('instructor').value,
+                createdBy: state.currentUser.name
+            };
+            // derive timeSlot if possible from startTime
+            const mappedSlot = getSlotForStartTime(form.startTime);
+            form.timeSlot = mappedSlot || form.startTime;
+
+            if(checkOverlap(form, state.editingId)) { alert("Time Conflict! This room is taken."); return; }
+
+            // Calculate simple end time using numeric start hour
+            const startH = getStartHourFromInput(form.startTime || form.timeSlot);
+            const endH = startH + form.duration;
+            form.endTime = formatHour(endH);
+
+            showLoading();
+            setTimeout(() => {
+                if(state.editingId) {
+                    DB.update('lcup_classes', state.editingId, form);
+                    DB.add('lcup_logs', {
+                        action: 'UPDATE', details: `Updated: ${form.course} (${form.section})`, user: state.currentUser.name, time: new Date().toLocaleString()
+                    });
+                } else {
+                    const newClass = { id: Date.now(), ...form };
+                    DB.add('lcup_classes', newClass);
+                    DB.add('lcup_logs', {
+                        action: 'ADD', details: `Added: ${form.course} (${form.section})`, user: state.currentUser.name, time: new Date().toLocaleString()
+                    });
+                }
+                
+                state.classes = DB.get('lcup_classes');
+                state.logs = DB.get('lcup_logs');
+                resetForm();
+                updateUI();
+                router('schedule');
+                hideLoading();
+            }, 500);
+        };
+
+        // --- HELPERS ---
+        
+        // UPDATED: Get numeric start hour from "7:00-8:00" style string
+        function getStartHour(slotStr) {
+            if(!slotStr) return 0;
+            const startPart = slotStr.split('-')[0].trim(); 
+            const [hStr, mStr] = startPart.split(':');
+            let h = parseInt(hStr);
+            const m = parseInt(mStr);
+            
+            // 12-hour conversion for PM slots (1:00, 2:00, etc.)
+            // Exception for 12:00 PM, it stays 12
+            if (h >= 1 && h <= 6) h += 12; 
+            
+            return h + (m / 60);
+        }
+
+        // Return the schedule slot string (one of SCHEDULE_SLOTS) that corresponds to a given
+        // start time like "07:30" or "7:30". Returns the slot string or null.
+        function getSlotForStartTime(startTimeStr) {
+            if(!startTimeStr) return null;
+            // Normalize simple HH:MM
+            try {
+                const sNum = getStartHourFromInput(startTimeStr);
+                for(const slot of SCHEDULE_SLOTS) {
+                    const slotStart = getStartHour(slot);
+                    if(Math.abs(slotStart - sNum) < 0.01) return slot;
+                }
+            } catch(e) { return null; }
+            return null;
+        }
+
+        // Returns true if class `c` should be rendered in schedule slot string `t`.
+        function classOccupiesSlot(c, t) {
+            if(!c) return false;
+            if(c.timeSlot && c.timeSlot === t) return true;
+            // If the class stores startTime as HH:MM, map it to a slot
+            const start = c.startTime || c.timeSlot || null;
+            if(!start) return false;
+            const slot = getSlotForStartTime(start);
+            if(slot && slot === t) return true;
+            return false;
+        }
+
+        function formatHour(h) {
+            let mod = h >= 12 ? 'PM' : 'AM';
+            let hr = Math.floor(h % 12) || 12;
+            let min = Math.round((h % 1) * 60);
+            return `${hr < 10 ? '0'+hr : hr}:${min < 10 ? '0'+min : min} ${mod}`;
+        }
+        function getBldg(r) {
+            if(r==='Online') return 'Online';
+            if(r.startsWith('SA')) return 'Admin (SA)';
+            if(r.startsWith('SN')) return 'SN Bldg';
+            if(r.startsWith('PP')) return 'Padre Pio (PP)';
+            if(r.startsWith('MR')) return 'Mo. Rita Barcelo Bldg (MR)';
+            if(r.startsWith('VMC')) return 'VMC';
+            if(r.startsWith('Lecture')) return 'CITHM';
+            if(r.startsWith('MM')) return 'AE (MM)';
+            return 'Other';
+        }
+        
+        // OVERLAP CHECK
+        function checkOverlap(newC, excludeId = null) {
+            if(newC.room === 'Online') return false;
+            const newStart = getStartHourFromInput(newC.startTime || newC.timeSlot);
+            const newEnd = newStart + parseFloat(newC.duration);
+
+            return state.classes.some(c => {
+                if(c.id === excludeId) return false;
+                if(c.room !== newC.room || c.day !== newC.day) return false;
+                const cStart = getStartHourFromInput(c.startTime || c.timeSlot);
+                const cEnd = cStart + parseFloat(c.duration);
+                
+                // Intersection: StartA < EndB AND EndA > StartB
+                return (newStart < cEnd && newEnd > cStart);
+            });
+        }
+        
+        function handleTypeChange() {
+             const t = document.getElementById('type').value;
+             if(t==='GE') document.getElementById('room').value = 'Online';
+        }
+        function validateForm() {
+            const room = document.getElementById('room').value;
+            const type = document.getElementById('type').value;
+            const slot = document.getElementById('startTime').value;
+            const start = getStartHour(slot); // e.g. 7.0 or 17.0
+            const msgs = [];
+            if(type === 'GE' && room !== 'Online') msgs.push("Policy: GE subjects should be Online.");
+            if(['PROF','PATHFIT','THEO','NSTP'].includes(type) && room === 'Online') msgs.push("Policy: This subject requires F2F.");
+            // Evening starts 5PM (17.0)
+            if(start >= 17 && room !== 'Online' && !getBldg(room).includes('SA') && !getBldg(room).includes('VMC')) msgs.push("Policy: Evening classes must be in SA/VMC.");
+            
+            const box = document.getElementById('warningBox');
+            if(box) {
+                if(msgs.length > 0) {
+                    box.innerHTML = msgs.map(m => `<div><i class="fas fa-exclamation-triangle"></i> ${m}</div>`).join('');
+                    box.classList.remove('hidden');
+                } else {
+                    box.classList.add('hidden');
+                }
+            }
+        }
+        function resetForm() {
+            document.getElementById('classForm').reset();
+            state.editingId = null;
+            document.getElementById('editId').value = '';
+            const titleEl = document.getElementById('formTitle');
+            if(titleEl) titleEl.innerHTML = '<i class="fas fa-plus-circle"></i> Add New Class';
+            document.getElementById('cancelEditBtn').classList.add('hidden');
+            document.getElementById('warningBox').classList.add('hidden');
+        }
+        document.getElementById('cancelEditBtn').onclick = resetForm;
+        document.getElementById('formCancelBtn').onclick = () => { resetForm(); router('schedule'); };
+        
+        window.router = (view) => {
+            ['dashboard', 'schedule', 'add'].forEach(v => {
+                const el = document.getElementById(`view-${v}`);
+                if(el) el.classList.add('hidden');
+                const btn = document.getElementById(`nav-${v}`);
+                if(btn) {
+                    btn.classList.remove('border-blue-600', 'text-blue-700', 'bg-blue-50');
+                    btn.classList.add('border-transparent', 'text-slate-600', 'hover:bg-slate-50');
+                }
+            });
+            const viewEl = document.getElementById(`view-${view}`);
+            if(viewEl) viewEl.classList.remove('hidden');
+            const activeBtn = document.getElementById(`nav-${view}`);
+            if(activeBtn) {
+                activeBtn.classList.remove('border-transparent', 'text-slate-600', 'hover:bg-slate-50');
+                activeBtn.classList.add('border-blue-600', 'text-blue-700', 'bg-blue-50');
+            }
+            if(view === 'dashboard') updateUI();
+            else if (view === 'schedule') renderGrid();
+        };
+
+    </script>
+</body>
+</html>
